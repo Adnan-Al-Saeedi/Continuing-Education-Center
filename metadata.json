@@ -1,0 +1,6 @@
+{
+  "name": "المساعد الرقمي لمركز التعليم المستمر",
+  "description": "تطبيق ويب متكامل لإدارة ومتابعة النشاطات العلمية (الدورات والورش) وإرسال التذكيرات والنماذج الرسمية للمحاضرين تلقائياً.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
