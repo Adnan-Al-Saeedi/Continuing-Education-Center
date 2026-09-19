@@ -26,6 +26,7 @@ interface ActivitiesTabProps {
   onAddActivity: (activity: Activity) => void;
   onUpdateActivity: (activity: Activity) => void;
   onDeleteActivity: (id: string) => void;
+  onClearAllActivities: () => void;
   onOpenConflicts: () => void;
 }
 
@@ -36,6 +37,7 @@ export const ActivitiesTab: React.FC<ActivitiesTabProps> = ({
   onAddActivity,
   onUpdateActivity,
   onDeleteActivity,
+  onClearAllActivities,
   onOpenConflicts,
 }) => {
   const [searchQuery, setSearchQuery] = useState('');
@@ -47,6 +49,9 @@ export const ActivitiesTab: React.FC<ActivitiesTabProps> = ({
   // حالة النافذة المنبثقة لإضافة / تعديل نشاط
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingActivity, setEditingActivity] = useState<Activity | null>(null);
+
+  // حالة نافذة تأكيد حذف جميع النشاطات
+  const [isDeleteAllModalOpen, setIsDeleteAllModalOpen] = useState(false);
 
   // استخراج قائمة الأقسام الفريدة للفلترة
   const departments = useMemo(() => {
@@ -295,13 +300,28 @@ export const ActivitiesTab: React.FC<ActivitiesTabProps> = ({
 
         </div>
 
-        <button
-          onClick={openAddModal}
-          className="inline-flex items-center justify-center gap-2 px-4 py-2 rounded-xl bg-gradient-to-r from-blue-950 to-blue-900 hover:from-blue-900 hover:to-blue-800 text-white text-xs font-bold transition-all shadow-md shadow-blue-950/15 cursor-pointer shrink-0 border border-blue-800/30"
-        >
-          <Plus className="w-4 h-4" />
-          <span>إضافة نشاط يدوياً</span>
-        </button>
+        <div className="flex items-center gap-2 shrink-0">
+          {activities.length > 0 && (
+            <button
+              id="clear-all-activities-btn"
+              onClick={() => setIsDeleteAllModalOpen(true)}
+              className="inline-flex items-center justify-center gap-1.5 px-3.5 py-2 rounded-xl bg-rose-50 hover:bg-rose-100 text-rose-700 text-xs font-bold border border-rose-200/80 transition-all cursor-pointer shadow-xs active:scale-98"
+              title="حذف جميع النشاطات المسجلة في النظام"
+            >
+              <Trash2 className="w-4 h-4 text-rose-600" />
+              <span>حذف جميع النشاطات ({activities.length})</span>
+            </button>
+          )}
+
+          <button
+            id="add-activity-manual-btn"
+            onClick={openAddModal}
+            className="inline-flex items-center justify-center gap-2 px-4 py-2 rounded-xl bg-gradient-to-r from-blue-950 to-blue-900 hover:from-blue-900 hover:to-blue-800 text-white text-xs font-bold transition-all shadow-md shadow-blue-950/15 cursor-pointer border border-blue-800/30 active:scale-98"
+          >
+            <Plus className="w-4 h-4" />
+            <span>إضافة نشاط يدوياً</span>
+          </button>
+        </div>
       </div>
 
       {/* جدول الأنشطة */}
@@ -554,6 +574,47 @@ export const ActivitiesTab: React.FC<ActivitiesTabProps> = ({
                 </button>
               </div>
             </form>
+          </div>
+        </div>
+      )}
+
+      {/* نافذة تأكيد حذف جميع النشاطات */}
+      {isDeleteAllModalOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/60 backdrop-blur-xs p-4 animate-in fade-in duration-150">
+          <div className="bg-white rounded-3xl max-w-md w-full shadow-2xl border border-slate-200 overflow-hidden animate-in zoom-in-95 duration-150">
+            <div className="p-6 text-center">
+              <div className="w-14 h-14 mx-auto rounded-2xl bg-rose-50 border border-rose-100 flex items-center justify-center text-rose-600 mb-4 shadow-inner">
+                <Trash2 className="w-7 h-7 text-rose-600" />
+              </div>
+              <h3 className="text-lg font-bold text-slate-900 mb-2">
+                حذف جميع النشاطات المسجلة
+              </h3>
+              <p className="text-xs text-slate-600 leading-relaxed mb-6">
+                هل أنت متأكد من رغبتك في حذف كافة النشاطات ({activities.length} نشاط)؟ 
+                سيتم مسح جميع سجلات الدورات وورش العمل نهائياً من قاعدة البيانات المحلية، ولن تتمكن من استرجاعها إلا بإعادة رفع ملف Excel مجدداً.
+              </p>
+
+              <div className="flex items-center gap-3">
+                <button
+                  type="button"
+                  onClick={() => setIsDeleteAllModalOpen(false)}
+                  className="flex-1 py-2.5 rounded-xl border border-slate-200 text-slate-700 hover:bg-slate-100 text-xs font-bold transition-colors cursor-pointer"
+                >
+                  إلغاء
+                </button>
+                <button
+                  type="button"
+                  id="confirm-delete-all-btn"
+                  onClick={() => {
+                    onClearAllActivities();
+                    setIsDeleteAllModalOpen(false);
+                  }}
+                  className="flex-1 py-2.5 rounded-xl bg-rose-600 hover:bg-rose-700 text-white text-xs font-bold shadow-md shadow-rose-600/20 transition-all cursor-pointer border border-rose-700"
+                >
+                  نعم، حذف الكل
+                </button>
+              </div>
+            </div>
           </div>
         </div>
       )}

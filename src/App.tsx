@@ -467,6 +467,10 @@ function MainApp() {
               onDeleteActivity={(id) =>
                 setActivities((prev) => prev.filter((a) => a.id !== id))
               }
+              onClearAllActivities={() => {
+                setActivities([]);
+                showNotification('تم حذف جميع النشاطات بنجاح.', 'info');
+              }}
               onOpenConflicts={() => setIsConflictModalOpen(true)}
             />
           )}
