@@ -103,3 +103,86 @@ export function composeEmail(
     isOver10MB,
   };
 }
+
+export interface ComposedWhatsApp {
+  text: string;
+  recipientPhone: string;
+  recipientName: string;
+  whatsappUrl: string;
+}
+
+/**
+ * تهيئة رقم الهاتف بالصيغة الدولية لواتساب (دعم الأرقام العراقية 07xxxxxxxx)
+ */
+export function formatIraqiPhoneNumber(rawPhone: string): string {
+  let cleaned = rawPhone.replace(/\D/g, '');
+  if (!cleaned) return '';
+  if (cleaned.startsWith('07') && cleaned.length === 11) {
+    cleaned = '964' + cleaned.substring(1);
+  } else if (cleaned.startsWith('7') && cleaned.length === 10) {
+    cleaned = '964' + cleaned;
+  } else if (!cleaned.startsWith('964') && cleaned.length === 10) {
+    cleaned = '964' + cleaned;
+  }
+  return cleaned;
+}
+
+/**
+ * صياغة رسالة واتساب الأكاديمية الرسمية وتوليد رابط الإرسال المباشر
+ */
+export function composeWhatsAppMessage(
+  activity: Activity,
+  lecturerName: string,
+  lecturerTitle: string | undefined,
+  lecturerPhone: string,
+  settings: Settings,
+  documents: DocumentItem[]
+): ComposedWhatsApp {
+  const formattedPhone = formatIraqiPhoneNumber(lecturerPhone);
+  const activityTypeLabel = activity.type === 'course' ? 'الدورة التدريبية' : 'ورشة العمل';
+  const startDateFmt = activity.start_date.replace(/-/g, '/');
+  const endDateFmt = activity.end_date ? activity.end_date.replace(/-/g, '/') : startDateFmt;
+
+  const applicableDocs = documents.filter(
+    (d) =>
+      d.applies_to === 'both' ||
+      (activity.type === 'course' && d.applies_to === 'courses') ||
+      (activity.type === 'workshop' && d.applies_to === 'workshops')
+  );
+
+  let docsText = '';
+  if (applicableDocs.length > 0) {
+    docsText = '\n📋 *النماذج والوثائق المطلوبة:*\n' + 
+      applicableDocs.map((d, i) => `${i + 1}. *${d.name}*: ${d.url}`).join('\n');
+  }
+
+  const messageText = 
+`السلام عليكم ورحمة الله وبركاته،
+تحية طيبة سعادة *${lecturerTitle ? lecturerTitle + ' ' : ''}${lecturerName}* المحترم،
+
+نود تذكيركم بموعد إقامة *${activityTypeLabel}*:
+📌 *«${activity.title}»*
+
+🏛️ *القسم العلمي:* ${activity.department}
+📅 *تاريخ البدء:* ${startDateFmt}
+⏳ *تاريخ الانتهاء:* ${endDateFmt}
+📍 *المكان:* ${activity.location || 'القاعة المخصصة في الكلية'}
+⏰ *الوقت:* ${activity.start_time || '10:00 صباحاً'}
+${activity.cost ? `💰 *الأجور:* ${activity.cost}\n` : ''}${docsText}
+
+نرجو من سيادتكم الاطلاع وتجهيز المتطلبات في الموعد المحدد.
+
+مع التقدير والاعتزاز،
+*${settings.sender_name || settings.center_name}*
+_${settings.college_name} - ${settings.university_name}_`;
+
+  const encoded = encodeURIComponent(messageText);
+  const whatsappUrl = `https://wa.me/${formattedPhone}?text=${encoded}`;
+
+  return {
+    text: messageText,
+    recipientPhone: formattedPhone,
+    recipientName: lecturerName,
+    whatsappUrl,
+  };
+}

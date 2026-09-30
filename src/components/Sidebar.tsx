@@ -2,7 +2,6 @@ import React from 'react';
 import { 
   LayoutDashboard, 
   CalendarDays, 
-  Users, 
   FileText, 
   Mail, 
   History, 
@@ -10,19 +9,17 @@ import {
   AlertCircle
 } from 'lucide-react';
 
-export type TabType = 'dashboard' | 'activities' | 'lecturers' | 'documents' | 'template' | 'logs' | 'settings';
+export type TabType = 'dashboard' | 'activities' | 'documents' | 'template' | 'logs' | 'settings';
 
 interface SidebarProps {
   currentTab: TabType;
   onSelectTab: (tab: TabType) => void;
-  unmatchedCount: number;
   conflictsCount: number;
 }
 
 export const Sidebar: React.FC<SidebarProps> = ({
   currentTab,
   onSelectTab,
-  unmatchedCount,
   conflictsCount,
 }) => {
   const menuItems = [
@@ -40,16 +37,6 @@ export const Sidebar: React.FC<SidebarProps> = ({
         <span className="bg-amber-100 text-amber-800 text-xs px-2 py-0.5 rounded-full font-bold flex items-center gap-1">
           <AlertCircle className="w-3 h-3" />
           {conflictsCount}
-        </span>
-      ) : null,
-    },
-    {
-      id: 'lecturers' as TabType,
-      label: 'دليل المحاضرين',
-      icon: Users,
-      badge: unmatchedCount > 0 ? (
-        <span className="bg-rose-100 text-rose-700 text-xs px-2 py-0.5 rounded-full font-bold">
-          {unmatchedCount}
         </span>
       ) : null,
     },

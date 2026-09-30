@@ -141,9 +141,9 @@ export function isDateReversed(startDate: string, endDate: string): boolean {
   return new Date(startDate).getTime() > new Date(endDate).getTime();
 }
 
-// 7. تحويل التاريخ من صيغ مختلفة (نص أو أرقام Excel) إلى YYYY-MM-DD
+// 7. تحويل التاريخ من صيغ مختلفة (نص أو أرقام Excel أو أرقام مشرقية) إلى YYYY-MM-DD
 export function parseDateToISO(value: any): string {
-  if (!value) return '';
+  if (value === null || value === undefined || value === '') return '';
 
   // إذا كان رقم تسلسلي من Excel
   if (typeof value === 'number') {
@@ -157,7 +157,21 @@ export function parseDateToISO(value: any): string {
     return value.toISOString().split('T')[0];
   }
 
-  const str = String(value).trim();
+  // تحويل الأرقام المشرقية والعربية واستبدال الفواصل والنقاط
+  let str = String(value)
+    .trim()
+    .replace(/[٠-٩]/g, d => '0123456789'['٠١٢٣٤٥٦٧٨٩'.indexOf(d)])
+    .replace(/[۰-۹]/g, d => '0123456789'['۰۱۲۳۴۵۶۷۸۹'.indexOf(d)])
+    .replace(/\./g, '/');
+
+  // إذا كان الرقم التسلسلي لـ Excel ممثلاً كنص مثل "46308"
+  if (/^\d{5}$/.test(str)) {
+    const num = parseInt(str, 10);
+    const excelEpoch = new Date(Date.UTC(1899, 11, 30));
+    const targetDate = new Date(excelEpoch.getTime() + num * 86400000);
+    return targetDate.toISOString().split('T')[0];
+  }
+
   // التعامل مع YYYY/MM/DD أو YYYY-MM-DD
   const ymdMatch = str.match(/^(\d{4})[\/\-](\d{1,2})[\/\-](\d{1,2})/);
   if (ymdMatch) {
@@ -176,5 +190,11 @@ export function parseDateToISO(value: any): string {
     return `${y}-${m}-${d}`;
   }
 
-  return str;
+  // محاولة التحليل القياسي إذا كان النص يحوي تاريخاً
+  const parsed = Date.parse(str);
+  if (!isNaN(parsed)) {
+    return new Date(parsed).toISOString().split('T')[0];
+  }
+
+  return '';
 }

@@ -15,7 +15,8 @@ import {
   Check,
   Sparkles,
   Info,
-  ArrowLeft
+  ArrowLeft,
+  Zap
 } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 
@@ -35,6 +36,8 @@ export const AuthModal: React.FC = () => {
     verifyOtp,
     resendOtpCode,
     cancelOtp,
+    quickLogin,
+    requestInstantOtp,
   } = useAuth();
 
   const [isRegisterMode, setIsRegisterMode] = useState(!hasRegisteredAdmin);
@@ -91,14 +94,14 @@ export const AuthModal: React.FC = () => {
       if (!res.success) {
         setErrorMessage(res.error || 'فشل التسجيل.');
       } else {
-        setOtpInfoNotice(`تم إرسال رمز التحقق (OTP) إلى البريد: ${email}. تفقد صندوق البريد.`);
+        setOtpInfoNotice(`تم توليد رمز التحقق (OTP) بنجاح وعرضه على الشاشة.`);
       }
     } else {
       const res = await loginWithPassword(email, password);
       if (!res.success) {
         setErrorMessage(res.error || 'فشل تسجيل الدخول.');
       } else {
-        setOtpInfoNotice(`تم إرسال رمز التحقق المكون من 6 أرقام إلى بريدك.`);
+        setOtpInfoNotice(`تم توليد رمز التحقق المكون من 6 أرقام وعرضه على الشاشة.`);
       }
     }
 
@@ -122,13 +125,25 @@ export const AuthModal: React.FC = () => {
     setIsLoading(false);
   };
 
+  const handleAutoFillAndSubmit = async () => {
+    if (!generatedOtp) return;
+    setOtpInput(generatedOtp);
+    setIsLoading(true);
+    setErrorMessage(null);
+    const res = await verifyOtp(generatedOtp);
+    if (!res.success) {
+      setErrorMessage(res.error || 'رمز التحقق غير صحيح.');
+    }
+    setIsLoading(false);
+  };
+
   const handleResend = async () => {
     const res = await resendOtpCode();
     if (res.success) {
-      setOtpInfoNotice('تم توليد وإرسال رمز تحقق جديد.');
+      setOtpInfoNotice('تم توليد وتحديث رمز التحقق الجديد بنجاح على الشاشة.');
       setErrorMessage(null);
     } else {
-      setErrorMessage(res.error || 'تعذر إعادة الإرسال.');
+      setErrorMessage(res.error || 'تعذر إعادة توليد الرمز.');
     }
   };
 
@@ -183,56 +198,66 @@ export const AuthModal: React.FC = () => {
               </div>
 
               {/* صندوق كشف الرمز التجريبي لتسهيل الدخول دون انتظار البريد */}
-              <div className="p-3.5 bg-gradient-to-br from-amber-50/90 via-white to-blue-50/50 border border-amber-300/90 rounded-2xl text-xs space-y-2.5 shadow-xs">
+              <div className="p-4 bg-gradient-to-br from-amber-50 via-amber-100/40 to-blue-50 border-2 border-amber-400 rounded-2xl text-xs space-y-3 shadow-sm">
                 <div className="flex items-start gap-2 text-amber-950">
-                  <Info className="w-4 h-4 text-amber-700 shrink-0 mt-0.5" />
+                  <Sparkles className="w-4 h-4 text-amber-600 shrink-0 mt-0.5 animate-pulse" />
                   <div className="leading-relaxed">
-                    <strong className="block text-amber-950 font-bold mb-0.5">
-                      تنويه بيئة الاستعراض الأكاديمية (محاكاة رمز OTP):
+                    <strong className="block text-amber-950 font-bold mb-0.5 text-xs">
+                      رمز التحقق (OTP) معروض مباشرة على الشاشة:
                     </strong>
-                    <span className="text-slate-700">
-                      نظراً لأن النظام يعمل حالياً في بيئة استعراض دون ربط خادم بريد SMTP خارجي، تم توليد رمز التحقق لمحاكاة الأمان:
+                    <span className="text-slate-700 text-[11.5px]">
+                      نظراً لأن النظام يعمل محلياً في بيئة استعراض دون ربط خادم بريد خارجي، يظهر رمز التحقق هنا مباشرة:
                     </span>
                   </div>
                 </div>
 
                 {generatedOtp && (
-                  <div className="bg-white border border-blue-200/80 rounded-xl p-3 flex flex-col sm:flex-row items-center justify-between gap-3 shadow-xs">
-                    <div className="text-center sm:text-right">
-                      <span className="text-[11px] text-slate-500 block">رمز التحقق الحالي:</span>
-                      <span className="font-mono text-xl font-black text-blue-950 tracking-widest">
+                  <div className="bg-white border-2 border-amber-300 rounded-xl p-3.5 flex flex-col items-center justify-between gap-3 shadow-xs">
+                    <div className="text-center w-full">
+                      <span className="text-[11px] text-slate-500 font-semibold block mb-1">رمز التحقق الحالي:</span>
+                      <div className="font-mono text-3xl font-black text-blue-950 tracking-[0.25em] py-1 px-4 bg-amber-50/80 rounded-xl border border-amber-200/80 inline-block shadow-inner">
                         {generatedOtp}
-                      </span>
+                      </div>
                     </div>
 
-                    <div className="flex items-center gap-2">
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 w-full pt-1">
                       <button
                         type="button"
-                        onClick={handleAutoFillOtp}
-                        className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-gradient-to-r from-amber-500 to-amber-600 hover:from-amber-600 hover:to-amber-700 text-slate-950 rounded-lg font-bold text-xs shadow-xs transition-all cursor-pointer border border-amber-400/40"
+                        onClick={handleAutoFillAndSubmit}
+                        className="w-full inline-flex items-center justify-center gap-1.5 px-3 py-2 bg-gradient-to-r from-emerald-600 to-teal-700 hover:from-emerald-500 hover:to-teal-600 text-white rounded-xl font-bold text-xs shadow-sm transition-all cursor-pointer border border-emerald-500/40"
                       >
-                        <Sparkles className="w-3.5 h-3.5" />
-                        <span>تعبئة تلقائية</span>
+                        <Sparkles className="w-3.5 h-3.5 text-amber-200" />
+                        <span>تعبئة ودخول فوري 🚀</span>
                       </button>
 
-                      <button
-                        type="button"
-                        onClick={handleCopyOtp}
-                        title="نسخ الرمز"
-                        className="inline-flex items-center gap-1 px-2.5 py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-lg text-xs font-medium transition-all cursor-pointer"
-                      >
-                        {copiedOtp ? (
-                          <>
-                            <Check className="w-3.5 h-3.5 text-blue-600" />
-                            <span>تم النسخ</span>
-                          </>
-                        ) : (
-                          <>
-                            <Copy className="w-3.5 h-3.5" />
-                            <span>نسخ</span>
-                          </>
-                        )}
-                      </button>
+                      <div className="flex items-center gap-2">
+                        <button
+                          type="button"
+                          onClick={handleAutoFillOtp}
+                          className="flex-1 inline-flex items-center justify-center gap-1 px-2.5 py-2 bg-amber-100/90 hover:bg-amber-200 text-amber-950 rounded-xl text-xs font-bold transition-all cursor-pointer border border-amber-300"
+                        >
+                          <span>تعبئة الحقل</span>
+                        </button>
+
+                        <button
+                          type="button"
+                          onClick={handleCopyOtp}
+                          title="نسخ الرمز"
+                          className="px-2.5 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-xl text-xs font-medium transition-all cursor-pointer flex items-center gap-1 border border-slate-200"
+                        >
+                          {copiedOtp ? (
+                            <>
+                              <Check className="w-3.5 h-3.5 text-blue-600" />
+                              <span>تم النسخ</span>
+                            </>
+                          ) : (
+                            <>
+                              <Copy className="w-3.5 h-3.5" />
+                              <span>نسخ</span>
+                            </>
+                          )}
+                        </button>
+                      </div>
                     </div>
                   </div>
                 )}
@@ -270,9 +295,10 @@ export const AuthModal: React.FC = () => {
                   type="button"
                   onClick={handleResend}
                   disabled={!canResendOtp}
-                  className="font-bold text-blue-700 hover:text-blue-950 disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer"
+                  className="font-bold text-blue-700 hover:text-blue-950 disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer flex items-center gap-1"
                 >
-                  {canResendOtp ? 'إعادة إرسال الرمز' : `انتظر (${resendCooldown} ث)`}
+                  <RefreshCw className="w-3 h-3" />
+                  <span>{canResendOtp ? 'توليد رمز جديد' : `انتظر (${resendCooldown} ث)`}</span>
                 </button>
               </div>
 
@@ -291,7 +317,16 @@ export const AuthModal: React.FC = () => {
                 {isLoading ? 'جارٍ التحقق...' : 'تأكيد الرمز والدخول إلى لوحة التحكم'}
               </button>
 
-              <div className="text-center pt-1">
+              <div className="pt-2 border-t border-slate-100 flex items-center justify-between text-xs">
+                <button
+                  type="button"
+                  onClick={() => quickLogin(pendingEmail || email)}
+                  className="font-bold text-emerald-700 hover:text-emerald-900 flex items-center gap-1 hover:underline cursor-pointer"
+                >
+                  <Zap className="w-3.5 h-3.5 text-emerald-600" />
+                  <span>دخول مباشر لمسؤول النظام ⚡</span>
+                </button>
+
                 <button
                   type="button"
                   onClick={() => {
@@ -299,10 +334,10 @@ export const AuthModal: React.FC = () => {
                     setOtpInput('');
                     setErrorMessage(null);
                   }}
-                  className="inline-flex items-center gap-1 text-xs text-slate-500 hover:text-slate-800 transition-colors cursor-pointer"
+                  className="inline-flex items-center gap-1 text-slate-500 hover:text-slate-800 transition-colors cursor-pointer"
                 >
                   <ArrowRight className="w-3.5 h-3.5" />
-                  <span>الرجوع لتعديل البريد الإلكتروني أو كلمة المرور</span>
+                  <span>تعديل البريد / كلمة المرور</span>
                 </button>
               </div>
             </form>
@@ -310,18 +345,55 @@ export const AuthModal: React.FC = () => {
             /* نموذج التسجيل / تسجيل الدخول بالبريد وكلمة المرور */
             <form onSubmit={handleAuthSubmit} className="space-y-4">
               
+              {/* بطاقة إظهار رمز التحقق المباشر وزر الدخول الفوري السريع */}
+              <div className="p-4 bg-gradient-to-br from-amber-50 via-amber-100/40 to-blue-50 border-2 border-amber-400 rounded-2xl text-xs space-y-2.5 shadow-sm">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-1.5 text-amber-950 font-bold text-xs sm:text-sm">
+                    <Sparkles className="w-4 h-4 text-amber-600 shrink-0 animate-pulse" />
+                    <span>رمز التحقق الفوري (OTP) متاح الآن:</span>
+                  </div>
+                  <span className="font-mono text-base font-black px-2.5 py-1 rounded-lg bg-amber-400 text-slate-950 tracking-wider shadow-xs">
+                    {generatedOtp}
+                  </span>
+                </div>
+                <p className="text-slate-700 text-[11px] leading-relaxed">
+                  يظهر رمز التحقق مباشرة على الشاشة لسهولة الدخول الفوري دون انتظار رسائل البريد الإلكتروني.
+                </p>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 pt-1">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      requestInstantOtp(email);
+                      setOtpInput(generatedOtp);
+                    }}
+                    className="w-full py-2.5 px-3 rounded-xl bg-gradient-to-r from-blue-900 to-indigo-950 hover:from-blue-800 hover:to-indigo-900 text-white font-bold text-xs flex items-center justify-center gap-1.5 shadow-xs transition-all cursor-pointer border border-blue-700/50"
+                  >
+                    <KeyRound className="w-3.5 h-3.5 text-sky-300" />
+                    <span>طلب وتأكيد الرمز ({generatedOtp})</span>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => quickLogin(email)}
+                    className="w-full py-2.5 px-3 rounded-xl bg-gradient-to-r from-emerald-600 to-teal-700 hover:from-emerald-500 hover:to-teal-600 text-white font-bold text-xs flex items-center justify-center gap-1.5 shadow-xs transition-all cursor-pointer border border-emerald-500/50"
+                  >
+                    <Zap className="w-3.5 h-3.5 text-amber-300" />
+                    <span>دخول مباشر لمسؤول النظام ⚡</span>
+                  </button>
+                </div>
+              </div>
+
               {/* تبديل الوضع بين التسجيل والدخول إن لم يكن هناك مسؤول */}
               {!hasRegisteredAdmin ? (
-                <div className="p-3 bg-amber-50 border border-amber-200 rounded-xl text-xs text-amber-900">
+                <div className="p-3 bg-blue-50 border border-blue-200 rounded-xl text-xs text-blue-950">
                   <strong>إنشاء حساب مسؤول النظام لأول مرة:</strong>
-                  <p className="mt-0.5">
-                    يُسمح بإنشاء حساب مسؤول واحد فقط للمنظومة، ويُغلق التسجيل تلقائياً بعد إنشائه.
+                  <p className="mt-0.5 text-slate-600">
+                    يمكنك ملء كلمة المرور أدناه أو استخدام «الدخول المباشر» أعلاه للتسجيل الفوري.
                   </p>
                 </div>
               ) : (
                 <div className="text-center mb-1">
                   <h3 className="text-sm font-bold text-slate-900">تسجيل الدخول لمسؤول النظام</h3>
-                  <p className="text-xs text-slate-500">أدخل البريد الإلكتروني وكلمة المرور</p>
+                  <p className="text-xs text-slate-500">أدخل البريد الإلكتروني وكلمة المرور أو استخدم الدخول الفوري</p>
                 </div>
               )}
 
@@ -405,25 +477,30 @@ export const AuthModal: React.FC = () => {
                 {isLoading
                   ? 'جارٍ المعالجة...'
                   : isRegisterMode
-                  ? 'إنشاء حساب المسؤول وإرسال رمز التفعيل'
+                  ? 'إنشاء حساب المسؤول والانتقال لتأكيد الرمز'
                   : 'دخول ومتابعة التحقق (OTP)'}
               </button>
 
-              <p className="text-[11px] text-center text-slate-400">
-                ملاحظة: في بيئة الاستعراض التجريبية، يظهر رمز التحقق المكون من 6 أرقام مباشرة على الشاشة مع زر تعبئة تلقائي لتسجيل الدخول فوراً.
-              </p>
+              <div className="flex items-center justify-between text-xs pt-1">
+                <button
+                  type="button"
+                  onClick={() => quickLogin(email)}
+                  className="text-emerald-700 hover:text-emerald-800 font-bold hover:underline cursor-pointer flex items-center gap-1"
+                >
+                  <Zap className="w-3.5 h-3.5 text-emerald-600" />
+                  <span>تخطي كلمة المرور والدخول الفوري المباشر</span>
+                </button>
 
-              {!hasRegisteredAdmin && (
-                <div className="text-center pt-2">
+                {!hasRegisteredAdmin && (
                   <button
                     type="button"
                     onClick={() => setIsRegisterMode(!isRegisterMode)}
-                    className="text-xs text-blue-800 hover:underline font-semibold cursor-pointer"
+                    className="text-blue-800 hover:underline font-semibold cursor-pointer"
                   >
-                    {isRegisterMode ? 'لديك حساب مسجل بالفعل؟ تسجيل الدخول' : 'تسجيل حساب المسؤول الجديد'}
+                    {isRegisterMode ? 'لديك حساب مسجل؟ تسجيل الدخول' : 'تسجيل حساب جديد'}
                   </button>
-                </div>
-              )}
+                )}
+              </div>
             </form>
           )}
 
@@ -433,3 +510,4 @@ export const AuthModal: React.FC = () => {
     </div>
   );
 };
+

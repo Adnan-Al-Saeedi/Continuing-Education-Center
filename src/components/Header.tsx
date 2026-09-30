@@ -1,8 +1,7 @@
 import React, { useState, useEffect } from 'react';
-import { Bell, Clock, Send, ShieldCheck, LogOut, CheckCircle, AlertTriangle } from 'lucide-react';
+import { Clock, Send, ShieldCheck, LogOut } from 'lucide-react';
 import { Settings } from '../types';
 import { useAuth } from '../context/AuthContext';
-import { getSupabaseClient } from '../lib/supabase';
 
 interface HeaderProps {
   settings: Settings;
@@ -10,11 +9,14 @@ interface HeaderProps {
   isSending: boolean;
 }
 
-export const Header: React.FC<HeaderProps> = ({ settings, onSendNow, isSending }) => {
+export const Header: React.FC<HeaderProps> = ({ 
+  settings, 
+  onSendNow, 
+  isSending,
+}) => {
   const { admin, logout } = useAuth();
   const [baghdadTime, setBaghdadTime] = useState<string>('');
   const [timeUntilCron, setTimeUntilCron] = useState<string>('');
-  const isSupabaseConnected = !!getSupabaseClient();
 
   useEffect(() => {
     const updateTime = () => {
@@ -90,21 +92,6 @@ export const Header: React.FC<HeaderProps> = ({ settings, onSendNow, isSending }
                 <span>الإرسال القادم (08:00 ص):</span>{' '}
                 <span className="font-semibold text-blue-900">{timeUntilCron}</span>
               </div>
-            </div>
-
-            {/* حالة اتصال قاعدة البيانات */}
-            <div className="hidden lg:flex items-center gap-1.5 text-xs px-3 py-1 rounded-full border bg-slate-50/80 border-slate-200/80 text-slate-700">
-              {isSupabaseConnected ? (
-                <>
-                  <CheckCircle className="w-3.5 h-3.5 text-sky-600" />
-                  <span className="text-slate-700 font-medium">Supabase متصل</span>
-                </>
-              ) : (
-                <>
-                  <AlertTriangle className="w-3.5 h-3.5 text-amber-500" />
-                  <span className="text-slate-700 font-medium">وضع المعاينة المحلي</span>
-                </>
-              )}
             </div>
 
             {/* زر إرسال الآن - زر اتخاذ الإجراء CTA الذهبي/البرتقالي الملكي */}

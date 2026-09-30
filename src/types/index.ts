@@ -16,6 +16,14 @@ export interface Settings {
   second_reminder: boolean;
   second_reminder_days: number;
   admin_email?: string;
+  data_source_url?: string;
+  last_sync_time?: string;
+  email_enabled: boolean;
+  whatsapp_enabled: boolean;
+  messaging_service_active: boolean;
+  whatsapp_mode?: 'direct' | 'api';
+  whatsapp_api_url?: string;
+  whatsapp_api_token?: string;
 }
 
 export interface Lecturer {
@@ -26,11 +34,22 @@ export interface Lecturer {
   department: string;
   email: string;
   phone?: string;
+  specialty?: string;
+}
+
+export interface ActivityLecturerDetail {
+  name: string;
+  phone?: string;
+  email?: string;
+  specialty?: string;
+  title?: string;
 }
 
 export interface Activity {
   id: string;
+  seq?: number | string;
   type: ActivityType;
+  raw_type?: string;
   title: string;
   department: string;
   lecturers_raw: string;
@@ -43,6 +62,13 @@ export interface Activity {
   notes?: string;
   date_fixed: boolean;
   parsed_lecturers?: string[];
+  specialty?: string;
+  cost?: string;
+  lecturer_name?: string;
+  lecturer_email?: string;
+  lecturer_phone?: string;
+  lecturer_title?: string;
+  lecturers_details?: ActivityLecturerDetail[];
 }
 
 export interface NameAlias {
@@ -76,8 +102,12 @@ export interface SendLog {
   lecturer_id?: string;
   recipient_name: string;
   email: string;
+  phone?: string;
   reminder_type: ReminderType;
   status: SendStatus;
+  channel?: 'email' | 'whatsapp' | 'both';
+  whatsapp_status?: SendStatus;
+  whatsapp_url?: string;
   error?: string;
   attempts: number;
   sent_at: string;

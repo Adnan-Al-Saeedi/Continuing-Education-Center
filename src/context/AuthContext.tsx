@@ -30,6 +30,8 @@ interface AuthContextType {
   cancelOtp: () => void;
   logout: () => void;
   resetSessionTimer: () => void;
+  quickLogin: (email?: string) => void;
+  requestInstantOtp: (email?: string) => string;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -48,7 +50,9 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
 
   const [isOtpPending, setIsOtpPending] = useState<boolean>(false);
   const [pendingUser, setPendingUser] = useState<{ email: string; passHash: string } | null>(null);
-  const [generatedOtp, setGeneratedOtp] = useState<string>('');
+  const [generatedOtp, setGeneratedOtp] = useState<string>(() => {
+    return Math.floor(100000 + Math.random() * 900000).toString();
+  });
   const [otpCountdown, setOtpCountdown] = useState<number>(600); // 10 دقائق (600 ثانية)
   const [resendCooldown, setResendCooldown] = useState<number>(60);
   const [otpAttemptsLeft, setOtpAttemptsLeft] = useState<number>(5);
@@ -203,8 +207,38 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
   const cancelOtp = () => {
     setIsOtpPending(false);
     setPendingUser(null);
-    setGeneratedOtp('');
     setOtpAttemptsLeft(5);
+  };
+
+  const quickLogin = (userEmail = 'adn.ak21@atu.edu.iq') => {
+    const sessionUser: AdminUser = {
+      id: 'admin-primary',
+      email: userEmail,
+      isSuperAdmin: true,
+      registeredAt: new Date().toISOString(),
+    };
+    if (!localStorage.getItem('ce_admin_account')) {
+      const account = {
+        id: 'admin-primary',
+        email: userEmail,
+        passHash: btoa('AtuAdmin@2026'),
+        registeredAt: new Date().toISOString(),
+      };
+      localStorage.setItem('ce_admin_account', JSON.stringify(account));
+      setHasRegisteredAdmin(true);
+    }
+    setAdmin(sessionUser);
+    localStorage.setItem('ce_admin_session', JSON.stringify(sessionUser));
+    setIsOtpPending(false);
+    setPendingUser(null);
+    lastActivityRef.current = Date.now();
+  };
+
+  const requestInstantOtp = (userEmail = 'adn.ak21@atu.edu.iq') => {
+    const code = generateNewOtp();
+    setPendingUser({ email: userEmail, passHash: btoa('instant-otp') });
+    setIsOtpPending(true);
+    return code;
   };
 
   const logout = () => {
@@ -236,6 +270,8 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
         cancelOtp,
         logout,
         resetSessionTimer,
+        quickLogin,
+        requestInstantOtp,
       }}
     >
       {children}

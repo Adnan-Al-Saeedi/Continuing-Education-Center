@@ -11,7 +11,6 @@ import { Header } from './components/Header';
 import { Sidebar, TabType } from './components/Sidebar';
 import { DashboardTab } from './components/DashboardTab';
 import { ActivitiesTab } from './components/ActivitiesTab';
-import { LecturersTab } from './components/LecturersTab';
 import { DocumentsTab } from './components/DocumentsTab';
 import { TemplateTab } from './components/TemplateTab';
 import { SendLogTab } from './components/SendLogTab';
@@ -26,6 +25,7 @@ import {
   DocumentItem, 
   EmailTemplate, 
   SendLog, 
+  SendStatus,
   NameAlias,
   DateConflictItem,
   UnmatchedLecturer 
@@ -43,7 +43,7 @@ import {
   isDateReversed 
 } from './lib/arabicUtils';
 
-import { composeEmail } from './lib/emailComposer';
+import { composeEmail, composeWhatsAppMessage } from './lib/emailComposer';
 
 function MainApp() {
   const { isAuthenticated } = useAuth();
@@ -251,20 +251,92 @@ function MainApp() {
     }
   };
 
-  // استيراد المحاضرين من ملف Excel
-  const handleImportLecturers = (imported: Lecturer[]) => {
-    setLecturers((prev) => {
-      const emailMap = new Map<string, Lecturer>();
-      prev.forEach((l) => emailMap.set(l.email.toLowerCase(), l));
-      imported.forEach((l) => emailMap.set(l.email.toLowerCase(), l));
-      return Array.from(emailMap.values());
+  // استعادة خطة كلية البوليتكنك - بابل الرسمية
+  const handleReloadPolytechnic = () => {
+    localStore.resetToPolytechnic();
+    setSettings(localStore.getSettings());
+    setActivities(localStore.getActivities());
+    setLecturers(localStore.getLecturers());
+    setAliases(localStore.getAliases());
+    showNotification('تم استرجاع خطة كلية البوليتكنك - بابل (2026-2027) الرسمية بنجاح!');
+  };
+
+  // تفعيل / إيقاف خدمة الواتساب الفورية المتزامنة مع البريد
+  // تبديل حالة خدمة الرسائل العامة (تشغيل / إيقاف مؤقت)
+  const handleToggleMessagingService = () => {
+    setSettings((prev) => {
+      const updated: Settings = {
+        ...prev,
+        messaging_service_active: !prev.messaging_service_active,
+      };
+      localStore.setSettings(updated);
+      showNotification(
+        updated.messaging_service_active
+          ? 'تم تشغيل خدمة الرسائل والتذكيرات الآلية بنجاح 🔔'
+          : 'تم إيقاف خدمة الرسائل والتذكيرات الآلية مؤقتاً ⏸️',
+        updated.messaging_service_active ? 'success' : 'info'
+      );
+      return updated;
     });
   };
 
-  // تنفيذ منطق الإرسال التلقائي أو الفوري
+  // تبديل حالة خدمة رسائل البريد الإلكتروني (تشغيل / إيقاف)
+  const handleToggleEmail = () => {
+    setSettings((prev) => {
+      const updated: Settings = {
+        ...prev,
+        email_enabled: !prev.email_enabled,
+      };
+      localStore.setSettings(updated);
+      showNotification(
+        updated.email_enabled
+          ? 'تم تفعيل خدمة رسائل البريد الإلكتروني بنجاح 📧'
+          : 'تم إيقاف خدمة رسائل البريد الإلكتروني مؤقتاً ⚪',
+        updated.email_enabled ? 'success' : 'info'
+      );
+      return updated;
+    });
+  };
+
+  // تبديل حالة خدمة الواتساب (تشغيل / إيقاف)
+  const handleToggleWhatsApp = () => {
+    setSettings((prev) => {
+      const updated: Settings = {
+        ...prev,
+        whatsapp_enabled: !prev.whatsapp_enabled,
+      };
+      localStore.setSettings(updated);
+      showNotification(
+        updated.whatsapp_enabled
+          ? 'تم تفعيل خدمة رسائل الواتساب بنجاح 💬: سيتم إرسال التذكيرات عبر واتساب بالتزامن مع البريد.'
+          : 'تم إيقاف تفعيل خدمة الواتساب مؤقتاً ⚪: سيتم الاكتفاء بالقنوات المفعّلة الأخرى.',
+        updated.whatsapp_enabled ? 'success' : 'info'
+      );
+      return updated;
+    });
+  };
+
+  // تنفيذ منطق الإرسال التلقائي أو الفوري (بريد إلكتروني + واتساب بالتزامن وفق القنوات المفعّلة)
   const handleSendNow = async () => {
+    if (!settings.messaging_service_active) {
+      showNotification('خدمة الرسائل والتذكيرات متوقفة حالياً. يرجى تفعيل خدمة الرسائل أولاً.', 'info');
+      return;
+    }
+
+    if (!settings.email_enabled && !settings.whatsapp_enabled) {
+      showNotification('كلا خدمتي البريد الإلكتروني والواتساب معطلتان حالياً. يرجى تشغيل قناة واحدة على الأقل قبل الإرسال.', 'error');
+      return;
+    }
+
     setIsSendingNow(true);
-    showNotification('جارٍ فحص الأنشطة المستحقة ومطابقة المحاضرين...', 'info');
+    showNotification(
+      settings.email_enabled && settings.whatsapp_enabled
+        ? 'جارٍ فحص الأنشطة المستحقة وإرسال التذكيرات عبر البريد الإلكتروني والواتساب في نفس الوقت...'
+        : settings.email_enabled
+        ? 'جارٍ فحص الأنشطة المستحقة وإرسال التذكيرات عبر البريد الإلكتروني...'
+        : 'جارٍ فحص الأنشطة المستحقة وإرسال التذكيرات عبر الواتساب...',
+      'info'
+    );
 
     // تاريخ اليوم + تاريخ الاستحقاق
     const today = new Date();
@@ -278,7 +350,8 @@ function MainApp() {
       (a) => a.start_date >= todayStr && a.start_date <= targetDateStr
     );
 
-    let sent = 0;
+    let sentEmail = 0;
+    let sentWhatsApp = 0;
     let failed = 0;
     let missingEmail = 0;
     let skipped = 0;
@@ -291,15 +364,27 @@ function MainApp() {
       for (const rawName of names) {
         const normRaw = normalizeArabic(rawName);
 
-        // البحث عن المحاضر
-        let matchedLec = null;
-        if (aliasMap.has(normRaw)) {
-          matchedLec = lecturers.find((l) => l.id === aliasMap.get(normRaw));
-        }
-        if (!matchedLec) {
-          matchedLec = lecturers.find(
-            (l) => l.normalized_name === normRaw || normalizeArabic(l.full_name) === normRaw
-          );
+        // البحث عن المحاضر: الأولوية للبيانات المضمنة مباشرة في النشاط
+        let matchedLec: Lecturer | null = null;
+        if (act.lecturer_email) {
+          matchedLec = {
+            id: `lec-${act.id}`,
+            full_name: act.lecturer_name || rawName,
+            normalized_name: normalizeArabic(act.lecturer_name || rawName),
+            title: act.lecturer_title,
+            department: act.department,
+            email: act.lecturer_email,
+            phone: act.lecturer_phone,
+          };
+        } else {
+          if (aliasMap.has(normRaw)) {
+            matchedLec = lecturers.find((l) => l.id === aliasMap.get(normRaw)) || null;
+          }
+          if (!matchedLec) {
+            matchedLec = lecturers.find(
+              (l) => l.normalized_name === normRaw || normalizeArabic(l.full_name) === normRaw
+            ) || null;
+          }
         }
 
         if (!matchedLec || !matchedLec.email) {
@@ -324,7 +409,33 @@ function MainApp() {
         const others = names.filter((n) => n !== rawName);
         const emailData = composeEmail(act, matchedLec, others, settings, template, documents);
 
-        // محاكاة الإرسال وتسجيل النجاح في send_log
+        // إرسال وتجهيز رسالة الواتساب بنفس الوقت عند تفعيل خدمة الواتساب
+        const phone = act.lecturer_phone || matchedLec.phone || '';
+        let whatsappUrl: string | undefined = undefined;
+        let whatsappStatus: SendStatus | undefined = undefined;
+
+        if (settings.whatsapp_enabled) {
+          const wa = composeWhatsAppMessage(
+            act,
+            matchedLec.full_name,
+            matchedLec.title,
+            phone,
+            settings,
+            documents
+          );
+          whatsappUrl = wa.whatsappUrl;
+          whatsappStatus = 'sent';
+          sentWhatsApp++;
+        }
+
+        if (settings.email_enabled) {
+          sentEmail++;
+        }
+
+        const channelMode: 'email' | 'whatsapp' | 'both' = 
+          (settings.email_enabled && settings.whatsapp_enabled) ? 'both' : (settings.email_enabled ? 'email' : 'whatsapp');
+
+        // تسجيل العملية في سجل الإرسال (Send Log)
         const logItem: SendLog = {
           id: `log-${Date.now()}-${Math.random().toString(36).substr(2, 5)}`,
           activity_id: act.id,
@@ -333,14 +444,17 @@ function MainApp() {
           lecturer_id: matchedLec.id,
           recipient_name: matchedLec.full_name,
           email: matchedLec.email,
+          phone: phone || undefined,
           reminder_type: 'first',
           status: 'sent',
+          channel: channelMode,
+          whatsapp_status: whatsappStatus,
+          whatsapp_url: whatsappUrl,
           attempts: 1,
           sent_at: new Date().toISOString(),
         };
 
         newLogs.push(logItem);
-        sent++;
       }
     }
 
@@ -349,9 +463,22 @@ function MainApp() {
     }
 
     setIsSendingNow(false);
-    showNotification(
-      `اكتمل الإرسال: تم إرسال ${sent} رسالة بنجاح، تخطي ${skipped} مكررة، ${missingEmail} بدون بريد.`
-    );
+    if (settings.email_enabled && settings.whatsapp_enabled) {
+      showNotification(
+        `اكتمل الإرسال المزدوج: تم إرسال ${sentEmail} بريد إلكتروني و ${sentWhatsApp} رسالة واتساب في نفس الوقت بنجاح (تخطي ${skipped} مكررة).`,
+        'success'
+      );
+    } else if (settings.email_enabled) {
+      showNotification(
+        `اكتمل الإرسال: تم إرسال ${sentEmail} رسالة بريد إلكتروني بنجاح (تخطي ${skipped} مكررة).`,
+        'success'
+      );
+    } else {
+      showNotification(
+        `اكتمل الإرسال: تم تجهيز ${sentWhatsApp} رسالة واتساب بنجاح (تخطي ${skipped} مكررة).`,
+        'success'
+      );
+    }
   };
 
   // إرسال تجريبي إلى بريد مسؤول النظام
@@ -433,7 +560,6 @@ function MainApp() {
         <Sidebar
           currentTab={currentTab}
           onSelectTab={setCurrentTab}
-          unmatchedCount={unmatchedLecturers.length}
           conflictsCount={dateConflicts.length}
         />
 
@@ -442,16 +568,16 @@ function MainApp() {
           {currentTab === 'dashboard' && (
             <DashboardTab
               activities={activities}
-              lecturers={lecturers}
               sendLogs={sendLogs}
               settings={settings}
-              unmatchedCount={unmatchedLecturers.length}
               conflictsCount={dateConflicts.length}
               onNavigateToActivities={() => setCurrentTab('activities')}
-              onNavigateToLecturers={() => setCurrentTab('lecturers')}
               onNavigateToLogs={() => setCurrentTab('logs')}
               onSendNow={handleSendNow}
               isSending={isSendingNow}
+              onToggleWhatsApp={handleToggleWhatsApp}
+              onToggleEmail={handleToggleEmail}
+              onToggleMessagingService={handleToggleMessagingService}
             />
           )}
 
@@ -459,6 +585,10 @@ function MainApp() {
             <ActivitiesTab
               activities={activities}
               conflicts={dateConflicts}
+              settings={settings}
+              documents={documents}
+              dataSourceUrl={settings.data_source_url}
+              lastSyncTime={settings.last_sync_time}
               onImportActivities={handleImportActivities}
               onAddActivity={(act) => setActivities((prev) => [act, ...prev])}
               onUpdateActivity={(act) =>
@@ -472,23 +602,14 @@ function MainApp() {
                 showNotification('تم حذف جميع النشاطات بنجاح.', 'info');
               }}
               onOpenConflicts={() => setIsConflictModalOpen(true)}
-            />
-          )}
-
-          {currentTab === 'lecturers' && (
-            <LecturersTab
-              lecturers={lecturers}
-              aliases={aliases}
-              unmatchedLecturers={unmatchedLecturers}
-              onImportLecturers={handleImportLecturers}
-              onAddLecturer={(lec) => setLecturers((prev) => [lec, ...prev])}
-              onUpdateLecturer={(lec) =>
-                setLecturers((prev) => prev.map((l) => (l.id === lec.id ? lec : l)))
+              onUpdateDataSourceUrl={(url) =>
+                setSettings((prev) => ({
+                  ...prev,
+                  data_source_url: url,
+                  last_sync_time: new Date().toISOString(),
+                }))
               }
-              onDeleteLecturer={(id) =>
-                setLecturers((prev) => prev.filter((l) => l.id !== id))
-              }
-              onBindAlias={handleBindAlias}
+              onReloadPolytechnic={handleReloadPolytechnic}
             />
           )}
 
@@ -526,6 +647,7 @@ function MainApp() {
             <SettingsTab
               settings={settings}
               onSaveSettings={(newSet) => setSettings(newSet)}
+              onReloadPolytechnic={handleReloadPolytechnic}
             />
           )}
         </main>
