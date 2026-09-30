@@ -33,7 +33,8 @@ import {
 
 import { 
   localStore, 
-  getSupabaseClient 
+  getSupabaseClient,
+  INITIAL_DOCUMENTS
 } from './lib/supabase';
 
 import { 
@@ -616,10 +617,25 @@ function MainApp() {
           {currentTab === 'documents' && (
             <DocumentsTab
               documents={documents}
-              onAddDocument={(doc) => setDocuments((prev) => [doc, ...prev])}
-              onDeleteDocument={(id) =>
-                setDocuments((prev) => prev.filter((d) => d.id !== id))
-              }
+              onAddDocument={(doc) => {
+                setDocuments((prev) => [doc, ...prev]);
+                showNotification(`تمت إضافة نموذج «${doc.name}» بنجاح.`);
+              }}
+              onUpdateDocument={(updatedDoc) => {
+                setDocuments((prev) =>
+                  prev.map((d) => (d.id === updatedDoc.id ? updatedDoc : d))
+                );
+                showNotification(`تم حفظ تعديل نموذج «${updatedDoc.name}» بنجاح.`);
+              }}
+              onDeleteDocument={(id) => {
+                const target = documents.find((d) => d.id === id);
+                setDocuments((prev) => prev.filter((d) => d.id !== id));
+                showNotification(`تم حذف نموذج «${target?.name || ''}» بنجاح.`);
+              }}
+              onResetDocuments={() => {
+                setDocuments(INITIAL_DOCUMENTS);
+                showNotification('تمت استعادة النماذج الرسمية الافتراضية بنجاح.');
+              }}
             />
           )}
 
