@@ -15,6 +15,7 @@ import {
 } from 'lucide-react';
 import { Activity, SendLog, Settings } from '../types';
 import { formatArabicDateWithDay } from '../lib/arabicUtils';
+import robotAssistantImg from '../assets/images/robot_assistant_1790793745648.jpg';
 
 interface DashboardTabProps {
   activities: Activity[];
@@ -152,7 +153,7 @@ export const DashboardTab: React.FC<DashboardTabProps> = ({
             <div className="relative rounded-3xl p-3 bg-gradient-to-b from-white/15 to-white/5 border border-white/20 shadow-2xl backdrop-blur-md flex flex-col items-center">
               <div className="relative w-44 h-44 sm:w-52 sm:h-52 rounded-2xl overflow-hidden border border-white/15 shadow-inner bg-slate-950/60 flex items-center justify-center">
                 <img
-                  src="/src/assets/images/robot_assistant_1790793745648.jpg"
+                  src={robotAssistantImg}
                   alt="مساعد الروبوت الذكي لمركز التعليم المستمر"
                   className="w-full h-full object-cover transform group-hover:scale-105 transition-transform duration-500"
                   referrerPolicy="no-referrer"

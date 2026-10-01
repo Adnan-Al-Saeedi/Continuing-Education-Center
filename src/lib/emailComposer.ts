@@ -128,7 +128,71 @@ export function formatIraqiPhoneNumber(rawPhone: string): string {
 }
 
 /**
+ * تحويل شفرة HTML إلى نص متوافق تماماً مع WhatsApp Markdown
+ */
+export function convertHtmlToWhatsApp(html: string): string {
+  let text = html;
+
+  // إزالة وسوم الأنماط والسكربتات
+  text = text.replace(/<style[^>]*>[\s\S]*?<\/style>/gi, '');
+  text = text.replace(/<script[^>]*>[\s\S]*?<\/script>/gi, '');
+
+  // تحويل العناوين
+  text = text.replace(/<h[1-6][^>]*>([\s\S]*?)<\/h[1-6]>/gi, '\n*$1*\n');
+
+  // تحويل الخطوط العريضة والمائلة
+  text = text.replace(/<(strong|b)[^>]*>([\s\S]*?)<\/(strong|b)>/gi, '*$2*');
+  text = text.replace(/<(em|i)[^>]*>([\s\S]*?)<\/(em|i)>/gi, '_$2_');
+
+  // تحويل الروابط
+  text = text.replace(/<a[^>]*href="([^"]*)"[^>]*>([\s\S]*?)<\/a>/gi, '$2: $1');
+
+  // تحويل صفوف وأعمدة الجداول
+  text = text.replace(/<tr[^>]*>([\s\S]*?)<\/tr>/gi, (_, rowContent) => {
+    const cells: string[] = [];
+    const cellRegex = /<t[dh][^>]*>([\s\S]*?)<\/t[dh]>/gi;
+    let match;
+    while ((match = cellRegex.exec(rowContent)) !== null) {
+      const cellText = match[1].replace(/<[^>]+>/g, '').trim();
+      if (cellText) cells.push(cellText);
+    }
+    if (cells.length === 2) {
+      return `• *${cells[0]}* ${cells[1]}\n`;
+    } else if (cells.length > 0) {
+      return `• ${cells.join(' - ')}\n`;
+    }
+    return '\n';
+  });
+
+  // تحويل عناصر القوائم
+  text = text.replace(/<li[^>]*>([\s\S]*?)<\/li>/gi, '• $1\n');
+
+  // استبدال الفواصل والفقرات
+  text = text.replace(/<br\s*\/?>/gi, '\n');
+  text = text.replace(/<\/p>/gi, '\n\n');
+  text = text.replace(/<\/div>/gi, '\n');
+
+  // إزالة بقية وسوم الـ HTML
+  text = text.replace(/<[^>]+>/g, '');
+
+  // فك رموز الكيانات
+  text = text
+    .replace(/&nbsp;/g, ' ')
+    .replace(/&amp;/g, '&')
+    .replace(/&lt;/g, '<')
+    .replace(/&gt;/g, '>')
+    .replace(/&quot;/g, '"')
+    .replace(/&#39;/g, "'");
+
+  // تنظيف الأسطر الفارغة الزائدة
+  text = text.replace(/\n{3,}/g, '\n\n').trim();
+
+  return text;
+}
+
+/**
  * صياغة رسالة واتساب الأكاديمية الرسمية وتوليد رابط الإرسال المباشر
+ * مطابقة تماماً لقالب رسالة البريد الإلكتروني المعتمد
  */
 export function composeWhatsAppMessage(
   activity: Activity,
@@ -136,12 +200,16 @@ export function composeWhatsAppMessage(
   lecturerTitle: string | undefined,
   lecturerPhone: string,
   settings: Settings,
-  documents: DocumentItem[]
+  documents: DocumentItem[],
+  template?: EmailTemplate,
+  otherLecturers: string[] = []
 ): ComposedWhatsApp {
   const formattedPhone = formatIraqiPhoneNumber(lecturerPhone);
   const activityTypeLabel = activity.type === 'course' ? 'الدورة التدريبية' : 'ورشة العمل';
   const startDateFmt = activity.start_date.replace(/-/g, '/');
   const endDateFmt = activity.end_date ? activity.end_date.replace(/-/g, '/') : startDateFmt;
+  const startDay = formatArabicDateWithDay(activity.start_date).split(' ')[0] || '';
+  const othersText = otherLecturers.length > 0 ? otherLecturers.join('، ') : 'لا يوجد مشاركون آخرون (المحاضر المنفرد)';
 
   const applicableDocs = documents.filter(
     (d) =>
@@ -152,29 +220,63 @@ export function composeWhatsAppMessage(
 
   let docsText = '';
   if (applicableDocs.length > 0) {
-    docsText = '\n📋 *النماذج والوثائق المطلوبة:*\n' + 
-      applicableDocs.map((d, i) => `${i + 1}. *${d.name}*: ${d.url}`).join('\n');
+    docsText = applicableDocs
+      .map((d) => `• *${d.name}*${d.description ? ` (${d.description})` : ''}:\n  🔗 ${d.url}`)
+      .join('\n\n');
+  } else {
+    docsText = 'لا توجد وثائق أو استمارات مطلوبة لهذا النشاط.';
   }
 
-  const messageText = 
-`السلام عليكم ورحمة الله وبركاته،
+  let messageText = '';
+
+  // إذا تم توفير قالب مخصص تم تعديله بواسطة المستخدم
+  if (template?.body_html && template.body_html.trim().length > 50) {
+    let customBody = template.body_html
+      .replace(/{{اسم_المحاضر}}/g, lecturerName)
+      .replace(/{{اللقب}}/g, lecturerTitle || '')
+      .replace(/{{نوع_النشاط}}/g, activityTypeLabel)
+      .replace(/{{عنوان_النشاط}}/g, activity.title)
+      .replace(/{{القسم}}/g, activity.department)
+      .replace(/{{تاريخ_البدء}}/g, startDateFmt)
+      .replace(/{{تاريخ_الانتهاء}}/g, endDateFmt)
+      .replace(/{{يوم_البدء}}/g, startDay)
+      .replace(/{{المكان}}/g, activity.location || 'القاعة المخصصة في الكلية')
+      .replace(/{{الوقت}}/g, activity.start_time || '10:00 صباحاً')
+      .replace(/{{المحاضرون_المشاركون}}/g, othersText)
+      .replace(/{{اسم_الجامعة}}/g, settings.university_name)
+      .replace(/{{اسم_الكلية}}/g, settings.college_name)
+      .replace(/{{اسم_المركز}}/g, settings.center_name)
+      .replace(/{{قائمة_النماذج}}/g, docsText);
+
+    messageText = convertHtmlToWhatsApp(customBody);
+  } else {
+    // القالب الأكاديمي الرسمي المطابق تماماً لرسالة البريد الإلكتروني
+    messageText = 
+`*${settings.university_name}*
+*${settings.college_name} - ${settings.center_name}*
+────────────────────────
 تحية طيبة سعادة *${lecturerTitle ? lecturerTitle + ' ' : ''}${lecturerName}* المحترم،
 
-نود تذكيركم بموعد إقامة *${activityTypeLabel}*:
-📌 *«${activity.title}»*
+نود تذكيركم بموعد إقامة *${activityTypeLabel}* الموسوم:
 
-🏛️ *القسم العلمي:* ${activity.department}
-📅 *تاريخ البدء:* ${startDateFmt}
-⏳ *تاريخ الانتهاء:* ${endDateFmt}
-📍 *المكان:* ${activity.location || 'القاعة المخصصة في الكلية'}
-⏰ *الوقت:* ${activity.start_time || '10:00 صباحاً'}
-${activity.cost ? `💰 *الأجور:* ${activity.cost}\n` : ''}${docsText}
+« *${activity.title}* »
 
-نرجو من سيادتكم الاطلاع وتجهيز المتطلبات في الموعد المحدد.
+• *القسم العلمي:* ${activity.department}
+• *تاريخ البدء:* ${startDay} ${startDateFmt}
+• *تاريخ الانتهاء:* ${endDateFmt}
+• *المكان / القاعة:* ${activity.location || 'القاعة المخصصة في الكلية'}
+• *الوقت:* ${activity.start_time || '10:00 صباحاً'}
+• *المحاضرون المشاركون:* ${othersText}
 
+📋 *النماذج والوثائق المطلوب إكمالها:*
+${docsText}
+
+نرجو من سيادتكم الاطلاع وتجهيز المتطلبات في الموعد المحدد لضمان انسيابية العمل وتوثيق النشاط بالشكل الأصولي.
+────────────────────────
 مع التقدير والاعتزاز،
-*${settings.sender_name || settings.center_name}*
+*إدارة ${settings.center_name}*
 _${settings.college_name} - ${settings.university_name}_`;
+  }
 
   const encoded = encodeURIComponent(messageText);
   const whatsappUrl = `https://wa.me/${formattedPhone}?text=${encoded}`;

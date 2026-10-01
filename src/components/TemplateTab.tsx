@@ -102,10 +102,10 @@ export const TemplateTab: React.FC<TemplateTabProps> = ({
   };
 
   const handleResetToDefault = () => {
-    if (confirm('هل تريد استعادة القالب الرسمي الافتراضي؟')) {
-      setSubject(INITIAL_TEMPLATE.subject);
-      setBodyHtml(INITIAL_TEMPLATE.body_html);
-    }
+    setSubject(INITIAL_TEMPLATE.subject);
+    setBodyHtml(INITIAL_TEMPLATE.body_html);
+    setSaveSuccess(true);
+    setTimeout(() => setSaveSuccess(false), 3000);
   };
 
   // توليد المعاينة الحية للبريد
@@ -135,15 +135,18 @@ export const TemplateTab: React.FC<TemplateTabProps> = ({
 
     if (!activity || !lecturer) return null;
 
+    const currentTemplate: EmailTemplate = { subject, body_html: bodyHtml };
     return composeWhatsAppMessage(
       activity,
       lecturer.full_name,
       lecturer.title,
       testPhoneInput || lecturer.phone || '',
       settings,
-      documents
+      documents,
+      currentTemplate,
+      ['م.م. سارة علي حسن']
     );
-  }, [activities, embeddedLecturers, selectedActivityId, selectedLecturerId, testPhoneInput, settings, documents]);
+  }, [activities, embeddedLecturers, selectedActivityId, selectedLecturerId, testPhoneInput, settings, documents, subject, bodyHtml]);
 
   const handleSendTest = async () => {
     if (!testEmailInput) return;

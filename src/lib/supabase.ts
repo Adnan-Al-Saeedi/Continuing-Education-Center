@@ -225,40 +225,64 @@ export const localStore = {
   setSettings: (settings: Settings) => localStorage.setItem('ce_settings', JSON.stringify(settings)),
 
   getTemplate: (): EmailTemplate => {
-    const data = localStorage.getItem('ce_template');
-    return data ? JSON.parse(data) : INITIAL_TEMPLATE;
+    try {
+      const data = localStorage.getItem('ce_template');
+      return data ? JSON.parse(data) : INITIAL_TEMPLATE;
+    } catch {
+      return INITIAL_TEMPLATE;
+    }
   },
   setTemplate: (template: EmailTemplate) => localStorage.setItem('ce_template', JSON.stringify(template)),
 
   getLecturers: (): Lecturer[] => {
     ensurePolytechnicDefaults();
-    const data = localStorage.getItem('ce_lecturers');
-    return data ? JSON.parse(data) : INITIAL_LECTURERS;
+    try {
+      const data = localStorage.getItem('ce_lecturers');
+      return data ? JSON.parse(data) : INITIAL_LECTURERS;
+    } catch {
+      return INITIAL_LECTURERS;
+    }
   },
   setLecturers: (lecturers: Lecturer[]) => localStorage.setItem('ce_lecturers', JSON.stringify(lecturers)),
 
   getActivities: (): Activity[] => {
     ensurePolytechnicDefaults();
-    const data = localStorage.getItem('ce_activities');
-    return data ? JSON.parse(data) : INITIAL_ACTIVITIES;
+    try {
+      const data = localStorage.getItem('ce_activities');
+      return data ? JSON.parse(data) : INITIAL_ACTIVITIES;
+    } catch {
+      return INITIAL_ACTIVITIES;
+    }
   },
   setActivities: (activities: Activity[]) => localStorage.setItem('ce_activities', JSON.stringify(activities)),
 
   getDocuments: (): DocumentItem[] => {
-    const data = localStorage.getItem('ce_documents');
-    return data ? JSON.parse(data) : INITIAL_DOCUMENTS;
+    try {
+      const data = localStorage.getItem('ce_documents');
+      return data ? JSON.parse(data) : INITIAL_DOCUMENTS;
+    } catch {
+      return INITIAL_DOCUMENTS;
+    }
   },
   setDocuments: (documents: DocumentItem[]) => localStorage.setItem('ce_documents', JSON.stringify(documents)),
 
   getAliases: (): NameAlias[] => {
-    const data = localStorage.getItem('ce_aliases');
-    return data ? JSON.parse(data) : INITIAL_ALIASES;
+    try {
+      const data = localStorage.getItem('ce_aliases');
+      return data ? JSON.parse(data) : INITIAL_ALIASES;
+    } catch {
+      return INITIAL_ALIASES;
+    }
   },
   setAliases: (aliases: NameAlias[]) => localStorage.setItem('ce_aliases', JSON.stringify(aliases)),
 
   getSendLogs: (): SendLog[] => {
-    const data = localStorage.getItem('ce_send_logs');
-    return data ? JSON.parse(data) : INITIAL_SEND_LOGS;
+    try {
+      const data = localStorage.getItem('ce_send_logs');
+      return data ? JSON.parse(data) : INITIAL_SEND_LOGS;
+    } catch {
+      return INITIAL_SEND_LOGS;
+    }
   },
   setSendLogs: (logs: SendLog[]) => localStorage.setItem('ce_send_logs', JSON.stringify(logs)),
   addSendLog: (log: SendLog) => {

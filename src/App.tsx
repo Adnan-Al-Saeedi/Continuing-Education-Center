@@ -422,7 +422,9 @@ function MainApp() {
             matchedLec.title,
             phone,
             settings,
-            documents
+            documents,
+            template,
+            others
           );
           whatsappUrl = wa.whatsappUrl;
           whatsappStatus = 'sent';
